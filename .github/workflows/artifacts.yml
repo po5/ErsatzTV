@@ -75,15 +75,6 @@ jobs:
           # Delete output directory
           rm -r "$release_name"
 
-      - name: Delete old release assets
-        uses: mknejp/delete-release-assets@v1
-        if: ${{ inputs.release_tag == 'develop' }}
-        with:
-          token: ${{ secrets.gh_token }}
-          tag: ${{ inputs.release_tag }}
-          fail-if-no-assets: false
-          assets: "*${{ matrix.target }}.tar.gz"
-
       - name: Publish
         uses: softprops/action-gh-release@v1
         with:
@@ -171,15 +162,6 @@ jobs:
           rm -f "$release_name/ffplay.exe"
 
           (cd "${release_name}" && 7z a "../${release_name}.zip" .)
-
-      - name: Delete old release assets
-        uses: mknejp/delete-release-assets@v1
-        if: ${{ inputs.release_tag == 'develop' }}
-        with:
-          token: ${{ secrets.gh_token }}
-          tag: ${{ inputs.release_tag }}
-          fail-if-no-assets: false
-          assets: "*win-x64.zip"
 
       - name: Publish
         uses: softprops/action-gh-release@v1

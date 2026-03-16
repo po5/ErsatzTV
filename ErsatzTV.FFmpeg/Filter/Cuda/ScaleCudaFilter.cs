@@ -63,18 +63,18 @@ public class ScaleCudaFilter : BaseFilter
 
                 if (_isAnamorphicEdgeCase)
                 {
-                    squareScale = $"scale_cuda=iw:sar*ih{format},setsar=1,";
+                    squareScale = $"scale_cuda=iw:sar*ih{format}:interp_algo=bilinear,setsar=1,";
                 }
                 else if (_currentState.IsAnamorphic)
                 {
-                    squareScale = $"scale_cuda=iw*sar:ih{format},setsar=1,";
+                    squareScale = $"scale_cuda=iw*sar:ih{format}:interp_algo=bilinear,setsar=1,";
                 }
                 else
                 {
                     aspectRatio += ",setsar=1";
                 }
 
-                scale = $"{squareScale}scale_cuda={targetSize}{format}{aspectRatio}";
+                scale = $"{squareScale}scale_cuda={targetSize}{format}:interp_algo=bilinear{aspectRatio}";
             }
 
             // TODO: this might not always upload to hardware, so NextState could be inaccurate

@@ -15,136 +15,12 @@ on:
         required: true
         type: string
     secrets:
-      apple_developer_certificate_p12_base64:
-        required: true
-      apple_developer_certificate_password:
-        required: true
-      ac_username:
-        required: true
-      ac_password:
-        required: true
       gh_token:
-        required: true
-      azure_client_id:
-        required: true
-      azure_tenant_id:
-        required: true
-      azure_subscription_id:
         required: true
 permissions:
   id-token: write
   contents: write
 jobs:
-  build_and_upload_mac:
-    name: Mac Build & Upload
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: macos-14
-            kind: macOS
-            target: osx-x64
-          - os: macos-14
-            kind: macOS
-            target: osx-arm64
-    steps:
-      - name: Get the sources
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: true
-
-      - name: Setup dotnet
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: Clean
-        run: dotnet clean --configuration Release && dotnet nuget locals all --clear
-
-      - name: Install dependencies
-        run: dotnet restore -r "${{ matrix.target}}"
-
-      - name: Import Code-Signing Certificates
-        uses: Apple-Actions/import-codesign-certs@v2
-        with:
-          p12-file-base64: ${{ secrets.apple_developer_certificate_p12_base64 }}
-          p12-password: ${{ secrets.apple_developer_certificate_password }}
-
-      - name: Calculate Release Name
-        shell: bash
-        run: |
-          release_name="ErsatzTV-${{ inputs.release_version }}-${{ matrix.target }}"
-          echo "RELEASE_NAME=${release_name}" >> $GITHUB_ENV
-
-      - name: Build
-        shell: bash
-        run: |
-          sed -i '' '/Scanner/d' ErsatzTV/ErsatzTV.csproj
-          dotnet publish ErsatzTV.Scanner/ErsatzTV.Scanner.csproj --framework net10.0 --runtime "${{ matrix.target }}" -c Release -o publish -p:RestoreEnablePackagePruning=true -p:InformationalVersion="${{ inputs.release_version }}-${{ matrix.target }}" -p:EnableCompressionInSingleFile=false -p:DebugType=Embedded -p:PublishSingleFile=true --self-contained true
-          dotnet publish ErsatzTV/ErsatzTV.csproj --framework net10.0 --runtime "${{ matrix.target }}" -c Release -o publish -p:RestoreEnablePackagePruning=true -p:InformationalVersion="${{ inputs.release_version }}-${{ matrix.target }}" -p:EnableCompressionInSingleFile=false -p:DebugType=Embedded -p:PublishSingleFile=true --self-contained true
-
-      - name: Bundle
-        shell: bash
-        run: |
-          brew install coreutils
-          plutil -replace CFBundleShortVersionString -string "${{ inputs.info_version }}" ErsatzTV-macOS/ErsatzTV-macOS/Info.plist
-          plutil -replace CFBundleVersion -string "${{ inputs.info_version }}" ErsatzTV-macOS/ErsatzTV-macOS/Info.plist
-          scripts/macOS/bundle.sh
-
-      - name: Sign
-        shell: bash
-        run: scripts/macOS/sign.sh
-
-      - name: Create DMG
-        shell: bash
-        run: |
-          brew install create-dmg
-          create-dmg \
-            --volname "ErsatzTV" \
-            --volicon "artwork/ErsatzTV.icns" \
-            --window-pos 200 120 \
-            --window-size 800 400 \
-            --icon-size 100 \
-            --icon "ErsatzTV.app" 200 190 \
-            --hide-extension "ErsatzTV.app" \
-            --app-drop-link 600 185 \
-            --skip-jenkins \
-            --no-internet-enable \
-            "ErsatzTV.dmg" \
-            "ErsatzTV.app/"
-
-      - name: Notarize
-        shell: bash
-        run: |
-          xcrun notarytool submit ErsatzTV.dmg --apple-id "${{ secrets.ac_username }}" --password "${{ secrets.ac_password }}" --team-id 32MB98Q32R --wait
-          xcrun stapler staple ErsatzTV.dmg
-
-      - name: Cleanup
-        shell: bash
-        run: |
-          mv ErsatzTV.dmg "${{ env.RELEASE_NAME }}.dmg"
-          rm -r publish
-          rm -r ErsatzTV.app
-
-      - name: Delete old release assets
-        uses: mknejp/delete-release-assets@v1
-        if: ${{ inputs.release_tag == 'develop' }}
-        with:
-          token: ${{ secrets.gh_token }}
-          tag: ${{ inputs.release_tag }}
-          fail-if-no-assets: false
-          assets: "*${{ matrix.target }}.dmg"
-
-      - name: Publish
-        uses: softprops/action-gh-release@v1
-        with:
-          prerelease: false
-          tag_name: ${{ inputs.release_tag }}
-          files: "${{ env.RELEASE_NAME }}.dmg"
-        env:
-          GITHUB_TOKEN: ${{ secrets.gh_token }}
-
   build_and_upload_linux:
     name: Build & Upload Linux
     runs-on: ${{ matrix.os }}
@@ -263,27 +139,6 @@ jobs:
         with:
           name: dotnet-windows-build
           path: dotnet-build
-
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.azure_client_id }}
-          tenant-id: ${{ secrets.azure_tenant_id }}
-          subscription-id: ${{ secrets.azure_subscription_id }}
-          enable-AzPSSession: true
-
-      - name: Sign dotnet artifacts
-        uses: azure/trusted-signing-action@v0
-        with:
-          endpoint: https://eus.codesigning.azure.net/
-          trusted-signing-account-name: ArtifactSigning
-          certificate-profile-name: ErsatzTV
-          files-folder: ${{ github.workspace }}/dotnet-build
-          files-folder-recurse: true
-          files-folder-filter: ErsatzTV.exe,ErsatzTV.Scanner.exe
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
 
       - name: Download rust launcher
         uses: suisei-cn/actions-download-file@v1.3.0

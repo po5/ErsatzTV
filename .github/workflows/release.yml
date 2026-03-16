@@ -11,12 +11,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Extract Docker Tag
-        shell: bash
-        run: |
-          tag=$(git describe --tags --abbrev=0)
-          echo "GIT_TAG=${tag:1}" >> $GITHUB_ENV
-          echo "DOCKER_TAG=${tag}" >> $GITHUB_ENV
       - name: Extract Artifacts Version
         shell: bash
         run: |
@@ -24,33 +18,14 @@ jobs:
           echo "ARTIFACTS_VERSION=${tag}" >> $GITHUB_ENV
           echo "INFO_VERSION=${tag:1}" >> $GITHUB_ENV
     outputs:
-      git_tag: ${{ env.GIT_TAG }}
-      docker_tag: ${{ env.DOCKER_TAG }}
       artifacts_version: ${{ env.ARTIFACTS_VERSION }}
       info_version: ${{ env.INFO_VERSION }}
   build_and_upload:
-    uses: ersatztv/ersatztv/.github/workflows/artifacts.yml@main
+    uses: po5/ersatztv/.github/workflows/artifacts.yml@main
     needs: calculate_version
     with:
       release_tag: ${{ needs.calculate_version.outputs.artifacts_version }}
       release_version: ${{ needs.calculate_version.outputs.artifacts_version }}
       info_version: ${{ needs.calculate_version.outputs.info_version }}
     secrets:
-      apple_developer_certificate_p12_base64: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
-      apple_developer_certificate_password: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
-      ac_username: ${{ secrets.AC_USERNAME }}
-      ac_password: ${{ secrets.AC_PASSWORD }}
       gh_token: ${{ secrets.GITHUB_TOKEN }}
-      azure_client_id: ${{ secrets.AZURE_CLIENT_ID }}
-      azure_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
-      azure_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  build_images:
-    uses: ersatztv/ersatztv/.github/workflows/docker.yml@main
-    needs: calculate_version
-    with:
-      base_version: latest
-      info_version: ${{ needs.calculate_version.outputs.git_tag }}
-      tag_version: ${{ needs.calculate_version.outputs.docker_tag }}
-    secrets:
-      docker_hub_username: ${{ secrets.DOCKER_HUB_USERNAME }}
-      docker_hub_access_token: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
